@@ -31,6 +31,11 @@ ink trunk, junction, three terminals. Units travel by arc length along polylines
   Re-placed on the route (still on 45°/90° geometry), verified at 2.0 s and 3.4 s.
 - Loop fade shortened to 0.4 s.
 
+## Pass 5 — punch on state changes
+- Added a 90 ms scale "stamp" (1.18 → 1, linear, no overshoot) on capture, standardize and dock, and cut the
+  state-swap crossfade from 100 ms to 60 ms so each transform reads as a snap rather than a blend.
+- Re-exported mp4 / gif and three beat stills into `exports/`.
+
 ## What I would push next (not done)
 - Middle beat could carry one more light touch (e.g. a tick sound-mark or a subtle count-up on the ruler)
   if it still reads too clinical when played in context.

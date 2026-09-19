@@ -368,8 +368,11 @@
         const p = polyPoint(u.journey, u.L, evalCps(u.cps, t));
         x = p[0]; y = p[1];
       }
-      e.g.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${rot.toFixed(2)})`);
-      const X = 0.1;
+      // stamp: a 90 ms scale snap on each state change (no bounce, no overshoot back)
+      const stamp = Math.max(flash(t, u.tCapArr, 0.09), flash(t, u.tStdArr, 0.09), flash(t, u.tDock, 0.09));
+      const sc = 1 + 0.18 * stamp;
+      e.g.setAttribute('transform', `translate(${x.toFixed(2)} ${y.toFixed(2)}) rotate(${rot.toFixed(2)}) scale(${sc.toFixed(3)})`);
+      const X = 0.06; // state swap crossfade: short enough to read as a cut
       const kCap = seg(t, u.tCapArr, u.tCapArr + X), kStd = seg(t, u.tStdArr, u.tStdArr + X);
       e.raw.setAttribute('opacity', 1 - kCap);
       e.cap.setAttribute('opacity', kCap * (1 - kStd));
