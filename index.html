@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Bloomfilter — System (assembly line)</title>
+<style>
+  @font-face {
+    font-family: "Inter";
+    src: url("fonts/InterVariable.woff2") format("woff2");
+    font-weight: 100 900;
+    font-style: normal;
+    font-display: block;
+  }
+  :root {
+    --paper: #F5F3EE;
+    --ink: #111110;
+    --mute: #8A8781;
+    --grid: #DEDBD3;
+    --blue: #2151E0;
+    --red: #E5432A;
+    --green: #17A05E;
+  }
+  html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+  body {
+    font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-feature-settings: "tnum" 1, "ss01" 1;
+    -webkit-font-smoothing: antialiased;
+    display: flex; flex-direction: column; align-items: center; min-height: 100vh;
+  }
+  #stage-wrap { width: 100%; max-width: 1600px; }
+  svg#stage { display: block; width: 100%; height: auto; background: var(--paper); }
+  svg text { font-family: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif; }
+
+  /* controls (chrome, not part of the loop) */
+  #controls {
+    width: 100%; max-width: 1600px; box-sizing: border-box;
+    padding: 12px 80px 28px; display: flex; align-items: center; gap: 16px;
+    font-size: 12px; letter-spacing: 0.02em; color: var(--mute);
+    user-select: none;
+  }
+  #controls button {
+    font: inherit; color: var(--ink); background: transparent; border: 1px solid var(--ink);
+    width: 32px; height: 24px; cursor: pointer; padding: 0; border-radius: 0;
+  }
+  #controls button:hover { background: var(--ink); color: var(--paper); }
+  #scrub-wrap { position: relative; flex: 1; height: 24px; }
+  #scrub {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 24px; margin: 0;
+    background: transparent; cursor: pointer; position: relative; z-index: 2;
+  }
+  #scrub::-webkit-slider-runnable-track { height: 1px; background: var(--ink); }
+  #scrub::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 2px; height: 14px; background: var(--ink); margin-top: -6.5px; border-radius: 0;
+  }
+  #scrub::-moz-range-track { height: 1px; background: var(--ink); }
+  #scrub::-moz-range-thumb { width: 2px; height: 14px; background: var(--ink); border: 0; border-radius: 0; }
+  .beat-mark {
+    position: absolute; top: 14px; transform: translateX(-1px);
+    border-left: 1px solid var(--mute); padding: 6px 0 0 6px; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--mute); white-space: nowrap; z-index: 1;
+  }
+  #time { min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; color: var(--ink); }
+  #hint { font-size: 10px; text-transform: uppercase; letter-spacing: 0.1em; }
+  @media (max-width: 900px) { #controls { padding: 12px 16px 24px; } .beat-mark { display: none; } }
+</style>
+</head>
+<body>
+  <div id="stage-wrap">
+    <svg id="stage" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" aria-label="Bloomfilter system: three unconnected work systems are captured, sequenced and standardized, then routed to three use cases: allocation, process design, governance."></svg>
+  </div>
+  <div id="controls">
+    <button id="play" title="Play / pause (space)">❚❚</button>
+    <div id="scrub-wrap">
+      <input id="scrub" type="range" min="0" max="1000" value="0" />
+      <div id="beat-marks"></div>
+    </div>
+    <div id="time">0.00 s</div>
+    <div id="hint">space · ←/→ 0.1s · [ ] beats</div>
+  </div>
+  <script src="scene.js"></script>
+</body>
+</html>
