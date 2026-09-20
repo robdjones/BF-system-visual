@@ -32,27 +32,28 @@ Approximate, diagrammatic labels (not product logos): Jira, GitHub, Agents, Copi
 Sessions, Tokens, Cycle time, Rework, Handoffs, Deploys, Models, Traces, Sprints. Blank pills = unfinished /
 unresolved fragments. Beads = measures / records.
 
-## Stage 1 — motion design
-- Irregular accretion 0–7s: tokens spawn at uneven intervals (clumps and pauses, never a beat), each with
-  a uniform scale-up and a short downward drift on entry.
-- From 7s a seamless 5s drift loop: each token has its own sum-of-sines drift (periods divide the loop
-  length, so the seam is exact), its own micro-jitter, its own rotation wobble, 0–2 random twitches, and
-  fragments flicker. No two tokens share a rhythm.
-- Measured: over 0.5s tokens move a mean of 10px with direction coherence 0.07 (0 = fully independent).
+## Stage 1 — motion design (v2, gravity pile)
+- Big tokens (70px pills, 30px type, 15–27px beads; 39 in all) drop in from above the frame at irregular
+  moments over ~7s (clumps and pauses, never a beat), tumbling with their own spin.
+- They fall under gravity and stack on each other and on the bottom edge of the screen into one loose heap
+  that spans the width, mounded toward the middle. Invisible walls at the frame edges keep it in shot.
+- A stadium is symmetric under a half turn, so pills that land upside-down are drawn with the label upright
+  without changing the silhouette.
+- Implementation: matter-js (MIT, vendored from the 0.20.0 npm build; the artifact build loads the same
+  file from cdnjs). The sim is pre-run once at load with a fixed 60fps step and stored as frames, so the
+  scene is deterministic, scrubbable, and loops exactly. Rest by ~9.5s; hold; dip to cream; loop.
 
-## Stage 2 — motion design
-Grammar, in order (phase chips in the viewer bar show where you are):
-1. **Capture / steerage** — scattered, jittering tokens are pulled one by one along an arc to a single gate
-   (the apex). Arrival order is irregular; they bunch in a queue at the mouth. Rotation halves and size
-   settles as they are pulled — calming begins at capture.
-2. **Sequence** — released from the queue on a strict 0.3s beat, they squeeze through the gate, then drift
-   downward to lanes inside the container, landing exactly on the beat with a small settle. Release order is
-   not arrival order (the gate sorts). Rows fill bottom-up: 5 · 3 · 4 · 2 · 3 · 1.
-3. **Normalize** — a top-to-bottom sweep resolves each row: rotation → 0, scale → 1, pill width → one unit
-   width, beads → one radius, blank fragments gain their label (unknowns resolved), positions snap to a grid.
-4. **One rhythm** — everything breathes on one shared beat (contrast with Stage 1's independent jitter).
-The container grows smoothly the whole time (long ease-out, 0.6 → 1.0), apex locked; landed tokens ride
-its growth as a slow downward drift. Loop closes with a short dip to cream.
+## Stage 2 — motion design (v2, rectangle rows)
+One solid orchid rectangle holds five mixed rows (pills, blank fragments, beads of different sizes, tilts,
+uneven gaps, a duplicate record and a missing record in each row). Each row runs the same grammar, offset
+by 0.55s per row so several operations are visible at once:
+1. **Capture** — a missing element pops in mid-row (scale-up in place); the row makes room.
+2. **Resolve** — the duplicate slides over its twin, passing above it, and vanishes into it; the row closes.
+3. **Sequence** — the row reorders under a visible rule (pills in label order, beads after), items
+   passing over and under each other with staggered starts.
+4. **Normalize** — shapes change: fragments become labelled pills, pill widths converge to one unit, beads
+   to one radius, tilt and vertical scatter go to zero, gaps go uniform; the five rows land on one grid.
+Then everything breathes on one shared beat, dips to cream, and loops. Container is fixed (no triangle).
 
 ## Improvement passes
 ### Pass 1 (first build) → critique
@@ -74,6 +75,13 @@ its growth as a slow downward drift. Loop closes with a short dip to cream.
 - Stage 1: fragment flicker softened (0.6 floor) so dips read as "unresolved", not as grey tokens.
 - Structure: scenes moved to `scenes/*.js` modules; `index.html` is now a chapter viewer that mounts one
   isolated scene at a time (keys 1 / 2); `build.mjs` inlines everything into `dist/` for a single-link publish.
+### Pass 5 → redirect from Rob (gravity pile; rectangle rows)
+- Stage 1 rebuilt as a physics pile: bigger elements, real falling and stacking along the bottom of the
+  screen. First render had inverted labels on upside-down pills → fixed via half-turn symmetry.
+- Stage 2 rebuilt: triangle dropped for a rectangle with five mixed rows worked on in place (appear, resolve
+  and vanish, reorder, shape change). First render: bottom row overflowed the rectangle after normalizing →
+  unit width reduced and row content capped at 4 pills + 3 beads; initial rows made more irregular (tilt,
+  scatter, per-pill scale) so normalizing has more to resolve.
 ### Pass 4 → review only
 - Full contact-sheet review of both loops after the pass 3 changes. Stage 1: accretion 0–7s reads as clumps
   and pauses, then the 5s drift loop with an exact seam. Stage 2: arcs stay in frame, queue bunches above the

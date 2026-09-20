@@ -51,29 +51,21 @@
     return e;
   };
 
-  // Token: pill (label), frag (blank pill, "unfinished"), dot (bead)
-  function makeToken(parent, spec) {
+  // Token: pill (label), frag (blank pill, "unfinished"), dot (bead). size = { h, font, padX } overrides.
+  function makeToken(parent, spec, size = {}) {
+    const H = size.h || KIT.pillH, FONT = size.font || KIT.font, PAD = size.padX || KIT.padX;
     const g = el('g', { class: 'tok ' + spec.kind }, parent);
-    const tok = { spec, g, w: 0, h: KIT.pillH };
+    const tok = { spec, g, w: 0, h: H };
     if (spec.kind === 'dot') {
       tok.r = spec.r || KIT.dotR;
       tok.circle = el('circle', { r: tok.r, fill: spec.color || KIT.dots[0] }, g);
       tok.w = tok.r * 2; tok.h = tok.r * 2;
     } else {
-      tok.rect = el('rect', { height: KIT.pillH, rx: KIT.pillH / 2, ry: KIT.pillH / 2, fill: KIT.ink }, g);
-      if (spec.kind === 'pill') {
-        tok.text = el('text', { 'font-size': KIT.font, 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 0 }, g);
-        tok.text.textContent = spec.label;
-        tok.w = tok.text.getComputedTextLength() + KIT.padX * 2;
-      } else {
-        tok.w = spec.w || 70;
-        // frag may later gain a label (resolution)
-        tok.text = el('text', { 'font-size': KIT.font, 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 0, opacity: 0 }, g);
-        tok.text.textContent = spec.label || '';
-      }
-      tok.setWidth = (w) => {
-        tok.rect.setAttribute('width', w); tok.rect.setAttribute('x', -w / 2); tok.rect.setAttribute('y', -KIT.pillH / 2);
-      };
+      tok.rect = el('rect', { height: H, rx: H / 2, ry: H / 2, fill: KIT.ink }, g);
+      tok.text = el('text', { 'font-size': FONT, 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 0, opacity: spec.kind === 'pill' ? 1 : 0 }, g);
+      tok.text.textContent = spec.label || '';
+      tok.w = spec.kind === 'pill' ? tok.text.getComputedTextLength() + PAD * 2 : (spec.w || 70);
+      tok.setWidth = (w) => { tok.rect.setAttribute('width', w); tok.rect.setAttribute('x', -w / 2); tok.rect.setAttribute('y', -H / 2); };
       tok.setWidth(tok.w);
     }
     tok.set = (s) => {
@@ -81,6 +73,7 @@
       g.setAttribute('transform', `translate(${s.x.toFixed(2)} ${s.y.toFixed(2)}) rotate(${(s.rot || 0).toFixed(2)}) scale(${sc.toFixed(4)})`);
       g.setAttribute('opacity', s.opacity == null ? 1 : s.opacity);
       if (s.w != null && tok.setWidth) tok.setWidth(s.w);
+      if (s.r != null && tok.circle) tok.circle.setAttribute('r', s.r);
       if (s.labelOpacity != null && tok.text) tok.text.setAttribute('opacity', s.labelOpacity);
       if (s.visible === false) g.setAttribute('display', 'none'); else g.removeAttribute('display');
     };

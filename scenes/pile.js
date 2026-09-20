@@ -1,86 +1,98 @@
-/* STAGE 1 — Unorganized systems pile
-   Concept: work systems, tools and measures sit as a disconnected mess. No shared sequence.
-   Motion job: irregular accretion, independent drift, micro-jitter, no common rhythm. Nothing processed. */
+/* STAGE 1 — Unorganized systems pile (gravity)
+   Concept: work systems, tools and measures sit as a disconnected mess.
+   Motion job: big tokens drop in at irregular moments, tumble, and settle on each other in a loose heap
+   along the bottom of the screen. No shared rhythm, nothing processed — just gravity.
+   Implementation: a 2D rigid-body sim (Matter.js) is pre-run once at load with a fixed timestep, so every
+   frame is a lookup → the scene stays deterministic, scrubbable and loops exactly. */
 BF.scenes.pile = (svg, mount) => {
-  const { KIT, lerp, remap, ease, rng, makeDrift, pulse, el, makeToken, Timeline } = BF;
+  const { KIT, lerp, remap, ease, rng, el, makeToken, Timeline } = BF;
+  const M = window.Matter;
   el('rect', { width: 1200, height: 800, fill: KIT.cream }, svg);
+  if (!M) {
+    const msg = el('text', { x: 600, y: 400, 'text-anchor': 'middle', 'font-size': 22, fill: KIT.ink }, svg);
+    msg.textContent = 'Physics library (matter-js) did not load — check network / CDN access.';
+    const tl = new Timeline({ duration: 1, render: () => {}, title: 'Stage 1', subtitle: 'unorganized systems pile', mount });
+    return tl;
+  }
   const layer = el('g', {}, svg);
+  const veil = el('rect', { width: 1200, height: 800, fill: KIT.cream, opacity: 0, 'pointer-events': 'none' }, svg);
 
-  const DUR = 12, LOOP_START = 7, LOOP = DUR - LOOP_START; // accretion 0–7s, then a seamless 5s drift loop
+  const DUR = 12, FPS = 60, LAST_DROP = 7.4;
+  const SIZE = { h: 70, font: 30, padX: 30 };
   const r = rng(1039);
 
   // token specs — approximate, diagrammatic labels (not product logos)
-  const labels = ['Jira', 'GitHub', 'Agents', 'Copilot', 'Cursor', 'PRs', 'Tickets', 'Sessions', 'Tokens', 'Cycle time', 'Rework', 'Handoffs', 'Deploys', 'Models', 'Traces', 'Sprints'];
+  const labels = ['Jira', 'GitHub', 'Agents', 'Copilot', 'Cursor', 'PRs', 'Tickets', 'Sessions', 'Tokens', 'Cycle time', 'Rework', 'Handoffs', 'Deploys', 'Models', 'Traces', 'Sprints', 'Reviews', 'Incidents', 'Specs', 'Runs'];
   const specs = [];
   labels.forEach((label) => specs.push({ kind: 'pill', label }));
-  for (let i = 0; i < 5; i++) specs.push({ kind: 'frag', w: r.range(34, 110) });
-  for (let i = 0; i < 14; i++) specs.push({ kind: 'dot', color: r.pick(KIT.dots), r: r.range(7, 12) });
+  for (let i = 0; i < 5; i++) specs.push({ kind: 'frag', w: r.range(64, 180) });
+  for (let i = 0; i < 14; i++) specs.push({ kind: 'dot', color: r.pick(KIT.dots), r: r.range(15, 27) });
+  const tokens = specs.map((spec) => makeToken(layer, spec, SIZE));
 
-  // scatter inside an irregular blob (lower-left of centre) — protect empty space top/right
-  const C = { x: 470, y: 500 };
-  const tokens = specs.map((spec, i) => {
-    const tok = makeToken(layer, spec);
-    const ang = r.range(0, Math.PI * 2), rad = Math.pow(r.f(), 0.6);
-    const base = { x: C.x + Math.cos(ang) * rad * 340 + r.range(-40, 40), y: C.y + Math.sin(ang) * rad * 200 + r.range(-30, 30) };
-    // a few strays sit well outside the blob — the mess has no edge
-    if (i % 9 === 4) { base.x += r.sign() * r.range(140, 220); base.y += r.sign() * r.range(60, 120); }
-    tok.base = base;
-    tok.rot = spec.kind === 'dot' ? 0 : r.range(-30, 30);
-    tok.scale = spec.kind === 'dot' ? 1 : r.range(0.72, 1.28);
-    tok.spawn = 0; // set below
-    tok.spawnDur = r.range(0.45, 0.9);
-    tok.dropFrom = r.range(-70, -140);
-    tok.driftX = makeDrift(r, LOOP, r.range(6, 16), [1, 2, 3]);
-    tok.driftY = makeDrift(r, LOOP, r.range(6, 16), [1, 2, 3]);
-    tok.jitterX = makeDrift(r, LOOP, r.range(0.6, 2.2), [7, 11]);
-    tok.jitterY = makeDrift(r, LOOP, r.range(0.6, 2.2), [9, 13]);
-    tok.wobble = makeDrift(r, LOOP, spec.kind === 'dot' ? 0 : r.range(1.5, 5), [1, 2]);
-    // twitches: 0–2 sudden small jumps per loop, at random moments — no shared beat
-    tok.twitches = Array.from({ length: Math.floor(r.range(0, 3)) }, () => ({ t: r.range(0, LOOP), dx: r.range(-9, 9), dy: r.range(-9, 9), w: r.range(0.18, 0.3) }));
-    // unfinished fragments flicker: brief opacity dips at their own moments (unresolved state)
-    tok.flickers = spec.kind === 'frag' ? Array.from({ length: 2 }, () => ({ t: r.range(0, LOOP), w: r.range(0.35, 0.7) })) : [];
-    return tok;
+  // drop schedule: irregular gaps (clumps and pauses), never a beat
+  const order = tokens.slice().sort(() => r.f() - 0.5);
+  let t = 0.3;
+  order.forEach((tok) => { tok.spawn = t; t += r.f() < 0.3 ? r.range(0.03, 0.1) : r.range(0.14, 0.42); });
+  const squeeze = (LAST_DROP - 0.3) / (t - 0.3);
+  order.forEach((tok) => (tok.spawn = 0.3 + (tok.spawn - 0.3) * squeeze));
+
+  // ---- physics world (pre-simulated)
+  const engine = M.Engine.create({ enableSleeping: true });
+  engine.gravity.y = 1.35;
+  const world = engine.world;
+  M.Composite.add(world, [
+    M.Bodies.rectangle(600, 860, 1600, 120, { isStatic: true, friction: 1 }),      // floor = bottom of the screen
+    M.Bodies.rectangle(-60, 0, 120, 3000, { isStatic: true }),                     // invisible side walls
+    M.Bodies.rectangle(1260, 0, 120, 3000, { isStatic: true }),
+  ]);
+  const bodyOpts = () => ({ friction: 0.55, frictionStatic: 0.9, restitution: 0.03, density: 0.002 });
+  order.forEach((tok) => {
+    // aim at the middle of the screen with a bell-ish spread so a heap forms, plus a few wide strays
+    const g = (r.f() + r.f() + r.f()) / 3;
+    let x = 600 + (g - 0.5) * 760;
+    if (r.f() < 0.12) x = 600 + r.sign() * r.range(380, 520);
+    const y = -140 - r.range(0, 120);
+    const w = tok.w, h = tok.h;
+    tok.body = tok.spec.kind === 'dot'
+      ? M.Bodies.circle(x, y, tok.r, bodyOpts())
+      : M.Bodies.rectangle(x, y, w, h, { chamfer: { radius: h / 2 - 1 }, ...bodyOpts() });
+    tok.angle0 = tok.spec.kind === 'dot' ? 0 : r.range(-1.2, 1.2);
+    tok.spin0 = r.range(-0.09, 0.09);
+    tok.vx0 = r.range(-1.6, 1.6);
   });
 
-  // light relaxation: keep centres apart enough that labels stay legible, but still allow overlap (it is a pile)
-  const minD = (a, b) => (a.spec.kind === 'dot' && b.spec.kind === 'dot' ? 28 : a.spec.kind === 'dot' || b.spec.kind === 'dot' ? 46 : 90);
-  for (let it = 0; it < 80; it++) {
-    for (let i = 0; i < tokens.length; i++) for (let j = i + 1; j < tokens.length; j++) {
-      const a = tokens[i].base, b = tokens[j].base, d = minD(tokens[i], tokens[j]);
-      let dx = b.x - a.x, dy = (b.y - a.y) * 1.6; const dist = Math.hypot(dx, dy) || 0.01;
-      if (dist < d) { const push = (d - dist) / dist * 0.5; a.x -= dx * push; a.y -= dy * push / 1.6; b.x += dx * push; b.y += dy * push / 1.6; }
+  const STEPS = Math.ceil(DUR * FPS) + 1;
+  const frames = new Array(STEPS);
+  let next = 0;
+  for (let s = 0; s < STEPS; s++) {
+    const st = s / FPS;
+    while (next < order.length && order[next].spawn <= st) {
+      const tok = order[next++];
+      M.Body.setAngle(tok.body, tok.angle0);
+      M.Body.setAngularVelocity(tok.body, tok.spin0);
+      M.Body.setVelocity(tok.body, { x: tok.vx0, y: 3 });
+      M.Composite.add(world, tok.body);
+      tok.added = true;
     }
-    for (const tok of tokens) { tok.base.x = Math.min(1080, Math.max(120, tok.base.x)); tok.base.y = Math.min(700, Math.max(150, tok.base.y)); }
+    frames[s] = tokens.map((tok) => (tok.added ? [tok.body.position.x, tok.body.position.y, tok.body.angle] : null));
+    M.Engine.update(engine, 1000 / FPS);
   }
-
-  // spawn order: irregular gaps (clumps and pauses) — not on a beat
-  let t = 0.35;
-  const order = tokens.slice().sort(() => r.f() - 0.5);
-  order.forEach((tok, i) => { tok.spawn = t; t += r.f() < 0.35 ? r.range(0.02, 0.08) : r.range(0.12, 0.42); });
-  const scaleT = 6.6 / t; // squeeze accretion into 0–7s
-  order.forEach((tok) => (tok.spawn *= scaleT));
 
   function render(t) {
-    const lt = ((t - LOOP_START) % LOOP + LOOP) % LOOP; // loop-local time (periodic)
-    for (const tok of tokens) {
-      const u = remap(t, tok.spawn, tok.spawn + tok.spawnDur);
-      if (u <= 0) { tok.set({ x: 0, y: 0, visible: false }); continue; }
-      const eu = ease.out(u);
-      let dx = tok.driftX(lt) + tok.jitterX(lt), dy = tok.driftY(lt) + tok.jitterY(lt);
-      for (const tw of tok.twitches) { const p = pulse(lt, tw.t, tw.w); dx += tw.dx * p; dy += tw.dy * p; }
-      let op = 1;
-      for (const fl of tok.flickers) op -= 0.4 * pulse(lt, fl.t, fl.w);
-      tok.set({
-        x: tok.base.x + dx,
-        y: tok.base.y + lerp(tok.dropFrom, 0, ease.outLong(u)) + dy,   // downward drift on entry
-        rot: tok.rot + tok.wobble(lt),
-        scale: tok.scale * eu,                                          // uniform scale-up on entry
-        opacity: op,
-      });
-    }
+    const f = Math.min(STEPS - 1, Math.max(0, t * FPS));
+    const i0 = Math.floor(f), i1 = Math.min(STEPS - 1, i0 + 1), u = f - i0;
+    tokens.forEach((tok, k) => {
+      const a = frames[i0][k], b = frames[i1][k] || a;
+      if (!a) { tok.set({ x: 0, y: 0, visible: false }); return; }
+      let rot = (lerp(a[2], b[2], u) * 180) / Math.PI;
+      // a stadium is symmetric under a half turn: keep labels upright without changing the silhouette
+      if (tok.spec.kind === 'pill') rot = (((rot + 90) % 180) + 180) % 180 - 90;
+      tok.set({ x: lerp(a[0], b[0], u), y: lerp(a[1], b[1], u), rot });
+    });
+    veil.setAttribute('opacity', Math.max(remap(t, DUR - 0.4, DUR), 1 - remap(t, 0, 0.3)));
   }
 
-  const tl = new Timeline({ duration: DUR, loopStart: LOOP_START, render, title: 'Stage 1', subtitle: 'unorganized systems pile', phases: [], mount });
+  const tl = new Timeline({ duration: DUR, render, title: 'Stage 1', subtitle: 'unorganized systems pile', phases: [], mount });
   tl.play();
   return tl;
 };
