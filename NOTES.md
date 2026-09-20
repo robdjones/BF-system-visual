@@ -74,3 +74,16 @@ its growth as a slow downward drift. Loop closes with a short dip to cream.
 - Stage 1: fragment flicker softened (0.6 floor) so dips read as "unresolved", not as grey tokens.
 - Structure: scenes moved to `scenes/*.js` modules; `index.html` is now a chapter viewer that mounts one
   isolated scene at a time (keys 1 / 2); `build.mjs` inlines everything into `dist/` for a single-link publish.
+### Pass 4 → review only
+- Full contact-sheet review of both loops after the pass 3 changes. Stage 1: accretion 0–7s reads as clumps
+  and pauses, then the 5s drift loop with an exact seam. Stage 2: arcs stay in frame, queue bunches above the
+  apex, beat landings fill rows bottom-up with lanes exact, sweep resolves to uniform units, hold breathes on
+  one rhythm. No further changes made; published as a single-file artifact.
+
+## Known limits / next
+- Reel not viewable from this environment; kit is built from the brief's description. Worth a side-by-side
+  check against the reel for pill proportion and container color.
+- Orchid container kept from the reel; single constant to swap if a Bloomfilter signal color is preferred.
+- Fonts fall back to the system grotesque stack (Inter → Helvetica → Arial). Load Inter explicitly when this
+  moves to the site.
+- Out of scope by brief and untouched: use-case outputs, tree/plant, website chrome, continuous scroll.
