@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloomfilter · System motion</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+  main { flex: 1; display: grid; place-content: center; gap: 28px; padding: 32px 16px; }
+  h1 { font-size: 15px; font-weight: 600; margin: 0; }
+  h1 span { font-weight: 400; opacity: .55; margin-left: 8px; }
+  .chapters { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 420px)); gap: 20px; }
+  a.chapter { display: block; color: inherit; text-decoration: none; border: 1px solid rgba(17,17,17,.18); border-radius: 18px; padding: 18px 18px 16px; transition: border-color .15s; }
+  a.chapter:hover { border-color: var(--ink); }
+  a.chapter .num { display: inline-block; background: var(--ink); color: var(--white); border-radius: 999px; padding: 4px 12px; font-size: 13px; font-weight: 600; }
+  a.chapter h2 { font-size: 22px; margin: 14px 0 6px; font-weight: 600; letter-spacing: -0.01em; }
+  a.chapter p { margin: 0; font-size: 14px; line-height: 1.45; opacity: .7; }
+  .thumb { height: 150px; border-radius: 12px; background: var(--cream); border: 1px solid rgba(17,17,17,.08); margin-bottom: 14px; overflow: hidden; }
+  .thumb svg { width: 100%; height: 100%; display: block; }
+  .kit { display: flex; gap: 10px; align-items: center; font-size: 12px; opacity: .7; }
+  .sw { width: 18px; height: 18px; border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 4px; }
+  .note { font-size: 13px; opacity: .6; max-width: 860px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bloomfilter · System motion prototype <span>two isolated stages · reel-faithful flat kit</span></h1>
+  <div class="chapters">
+    <a class="chapter" href="stage-1-pile.html">
+      <div class="thumb"><svg viewBox="0 0 420 150"><rect width="420" height="150" fill="#FCF3E1"/>
+        <g fill="#111"><rect x="120" y="52" width="74" height="22" rx="11" transform="rotate(-14 157 63)"/><rect x="200" y="70" width="62" height="22" rx="11" transform="rotate(9 231 81)"/><rect x="150" y="92" width="88" height="22" rx="11" transform="rotate(-6 194 103)"/><rect x="250" y="40" width="40" height="22" rx="11" transform="rotate(22 270 51)"/><rect x="90" y="100" width="54" height="22" rx="11" transform="rotate(18 117 111)"/></g>
+        <circle cx="110" cy="70" r="5" fill="#F26B21"/><circle cx="262" cy="108" r="5" fill="#6A4CFF"/><circle cx="300" cy="80" r="4" fill="#F5C400"/><circle cx="180" cy="128" r="5" fill="#7A8A2E"/></svg></div>
+      <span class="num">Stage 1</span>
+      <h2>Unorganized systems pile</h2>
+      <p>Tools, records and measures as a disconnected mess. Irregular accretion, independent drift, no shared rhythm. Nothing processed yet.</p>
+    </a>
+    <a class="chapter" href="stage-2-transform.html">
+      <div class="thumb"><svg viewBox="0 0 420 150"><rect width="420" height="150" fill="#FCF3E1"/>
+        <polygon points="210,22 310,140 110,140" fill="#F090F0"/>
+        <g fill="#111"><rect x="176" y="62" width="68" height="18" rx="9"/><rect x="150" y="86" width="56" height="18" rx="9"/><rect x="212" y="86" width="56" height="18" rx="9"/><rect x="132" y="110" width="50" height="18" rx="9"/><rect x="190" y="110" width="50" height="18" rx="9"/><rect x="248" y="110" width="40" height="18" rx="9"/></g>
+        <circle cx="210" cy="46" r="4" fill="#6A4CFF"/><circle cx="276" cy="95" r="4" fill="#F26B21"/><circle cx="300" cy="119" r="4" fill="#F5C400"/></svg></div>
+      <span class="num">Stage 2</span>
+      <h2>Transform · capture, sequence, normalize</h2>
+      <p>The mess is pulled to one gate, released on a beat into lanes, then resolved into uniform units inside a steadily growing container.</p>
+    </a>
+  </div>
+  <div class="kit">
+    <span><i class="sw" style="background:#FCF3E1;border:1px solid rgba(0,0,0,.15)"></i>cream</span>
+    <span><i class="sw" style="background:#111"></i>ink pills</span>
+    <span><i class="sw" style="background:#F090F0"></i>orchid container</span>
+    <span><i class="sw" style="background:#F26B21"></i><i class="sw" style="background:#F5C400"></i><i class="sw" style="background:#6A4CFF"></i><i class="sw" style="background:#7A8A2E"></i>beads</span>
+  </div>
+  <p class="note">Each stage is a self-contained looping scene. Space = play/pause · ← → = step a frame (shift for 1s) · R = replay. Stage 2 shows its operation phases in the viewer bar; that bar is reviewer chrome, not part of the scene.</p>
+</main>
+</body>
+</html>
