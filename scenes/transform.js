@@ -1,0 +1,154 @@
+/* STAGE 2 — Transformation (steerage)
+   Concept: Bloomfilter captures the mess and runs it through transformation — sequencing and normalizing.
+   Motion job, in order:
+     CAPTURE   — scattered tokens are pulled to one gate (the apex) and admitted, irregular arrival, queue at the mouth
+     SEQUENCE  — released one-after-another on a strict beat, landing in lanes; order appears
+     NORMALIZE — a sweep resolves irregular tokens (size, rotation, width, unknowns) to uniform units on a grid
+     HOLD      — everything breathes on one shared rhythm; the container keeps growing smoothly */
+BF.scenes.transform = (svg, mount) => {
+  const { KIT, lerp, remap, ease, rng, makeDrift, pulse, el, makeToken, Timeline } = BF;
+  el('rect', { width: 1200, height: 800, fill: KIT.cream }, svg);
+  const tri = el('polygon', { fill: KIT.orchid }, svg);
+  const layer = el('g', {}, svg);
+  const veil = el('rect', { width: 1200, height: 800, fill: KIT.cream, opacity: 0, 'pointer-events': 'none' }, svg);
+
+  const DUR = 12.5, BEAT = 0.3, L0 = 2.4, DROP = 0.75, TRAVEL = 0.9, N0 = 8.2, HOLD0 = 10.2;
+  const APEX = { x: 600, y: 150 }, H_FINAL = 590, SLOPE = 0.64, W_U = 150, GAP = 16;
+  const r = rng(5500);
+  const growth = (t) => lerp(0.6, 1.0, ease.outLong(t / DUR));            // smooth, steady growth (long ease)
+  const triH = (t) => growth(t) * H_FINAL;
+  const grow = (p, t) => ({ x: APEX.x + (p.x - APEX.x) * growth(t), y: APEX.y + (p.y - APEX.y) * growth(t) });
+
+  // tokens in landing order. 'P' pill, 'F' frag (unfinished → resolved), 'd' bead.
+  // The plan is chosen so rows fill the triangle bottom-up: 5 · 3 · 4 · 2 · 3 · 1
+  const plan = 'PdPPd PPP PdFd PP Fdd P'.replace(/ /g, '');
+  const labels = ['Jira', 'GitHub', 'Agents', 'Copilot', 'Cursor', 'PRs', 'Tickets', 'Sessions', 'Tokens', 'Cycle time', 'Rework', 'Handoffs'];
+  const fragLabels = ['Deploys', 'Traces'];
+  const specs = [];
+  let li = 0, di = 0, fi = 0;
+  for (const c of plan) {
+    if (c === 'P') specs.push({ kind: 'pill', label: labels[li++] });
+    else if (c === 'F') specs.push({ kind: 'frag', w: r.range(40, 100), label: fragLabels[fi++] });
+    else { specs.push({ kind: 'dot', color: KIT.dots[di % 4], r: r.range(6, 13) }); di++; }
+  }
+  const tokens = specs.map((spec) => makeToken(layer, spec));
+
+  // ---- slot layout (final geometry): rows packed bottom-up in landing order, using normalized widths
+  const rows = []; let k = 0, cursor = 0;
+  while (cursor < tokens.length) {
+    const y = APEX.y + H_FINAL - 46 - k * 58, hw = SLOPE * (y - APEX.y) - 30;
+    const row = { y, items: [], width: 0 };
+    while (cursor < tokens.length) {
+      const tok = tokens[cursor], w = tok.spec.kind === 'dot' ? 24 : W_U;
+      const next = row.width + (row.items.length ? GAP : 0) + w;
+      if (next > hw * 2 && row.items.length) break;
+      row.items.push(tok); row.width = next; cursor++;
+    }
+    rows.push(row); k++;
+  }
+  rows.forEach((row, ri) => {
+    let x = 600 - row.width / 2;
+    row.items.forEach((tok) => {
+      const w = tok.spec.kind === 'dot' ? 24 : W_U;
+      tok.row = ri;
+      tok.norm = { x: x + w / 2, y: row.y, rot: 0, scale: 1, w: W_U, r: 10 };
+      tok.irr = { x: x + w / 2 + r.range(-16, 16), y: row.y, rot: tok.spec.kind === 'dot' ? 0 : r.range(-20, 20), scale: tok.spec.kind === 'dot' ? 1 : r.range(0.78, 1.22), w: tok.w };
+      x += w + GAP;
+    });
+  });
+  const ROWS = rows.length;
+
+  // ---- timing per token: strict landings; irregular captures; a queue forms at the gate
+  tokens.forEach((tok, i) => {
+    tok.land = L0 + i * BEAT;
+    tok.release = tok.land - DROP;
+    const wait = r.range(0.15, 1.7);
+    tok.capture = Math.max(0.25 + r.range(0, 0.2), tok.release - TRAVEL - wait);
+    tok.arrive = tok.capture + TRAVEL;
+    // start outside the container, in the left or right band, irregular
+    const side = i % 2 === 0 ? -1 : 1;
+    tok.start = { x: 600 + side * r.range(400, 520), y: r.range(150, 660) };
+    tok.startRot = tok.spec.kind === 'dot' ? 0 : r.range(-30, 30);
+    tok.startScale = tok.spec.kind === 'dot' ? 1 : r.range(0.72, 1.28);
+    tok.hover = { x: APEX.x + r.range(-120, 120), y: APEX.y - r.range(34, 92) };
+    tok.driftX = makeDrift(r, DUR, r.range(5, 12), [2, 3, 5]);
+    tok.driftY = makeDrift(r, DUR, r.range(5, 12), [2, 3, 5]);
+    tok.jx = makeDrift(r, DUR, 1.5, [11, 17]);
+    tok.jy = makeDrift(r, DUR, 1.5, [13, 19]);
+    tok.normAt = N0 + (ROWS - 1 - tok.row) * 0.22 + r.range(0, 0.06);   // sweep top → bottom
+  });
+  // light relaxation of the outside scatter so labels stay legible
+  for (let it = 0; it < 60; it++) for (let i = 0; i < tokens.length; i++) for (let j = i + 1; j < tokens.length; j++) {
+    const a = tokens[i].start, b = tokens[j].start; let dx = b.x - a.x, dy = (b.y - a.y) * 1.5; const dist = Math.hypot(dx, dy) || 0.01, d = 70;
+    if (dist < d) { const push = (d - dist) / dist * 0.5; a.x -= dx * push; a.y -= dy * push / 1.5; b.x += dx * push; b.y += dy * push / 1.5; }
+  }
+  tokens.forEach((tok) => { tok.start.x = Math.min(1110, Math.max(90, tok.start.x)); tok.start.y = Math.min(700, Math.max(140, tok.start.y)); });
+
+  const qbez = (p0, p1, p2, u) => ({ x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * p1.x + u * u * p2.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * p1.y + u * u * p2.y });
+  const GATE = { x: APEX.x, y: APEX.y + 26 };
+
+  function render(t) {
+    // container: apex locked, growing steadily
+    const H = triH(t), hw = SLOPE * H;
+    tri.setAttribute('points', `${APEX.x},${APEX.y} ${APEX.x + hw},${APEX.y + H} ${APEX.x - hw},${APEX.y + H}`);
+    const beatPulse = t >= HOLD0 ? pulse(((t - HOLD0) % 0.6), 0, 0.28) * 0.035 : 0; // one shared rhythm in the hold
+
+    for (const tok of tokens) {
+      const dot = tok.spec.kind === 'dot';
+      let s;
+      if (t < tok.capture) {
+        // outside: jittering, independent, irregular
+        s = { x: tok.start.x + tok.driftX(t) + tok.jx(t), y: tok.start.y + tok.driftY(t) + tok.jy(t), rot: tok.startRot, scale: tok.startScale, w: tok.w };
+      } else if (t < tok.arrive) {
+        // CAPTURE: pulled along an arc into the gate; already calming (rotation halves, size settles)
+        const u = ease.inOut(remap(t, tok.capture, tok.arrive));
+        const p0 = { x: tok.start.x + tok.driftX(tok.capture) + tok.jx(tok.capture), y: tok.start.y + tok.driftY(tok.capture) + tok.jy(tok.capture) };
+        const p1 = { x: (p0.x + tok.hover.x) / 2, y: Math.max(34, Math.min(p0.y, tok.hover.y) - 90) }; // arc stays in frame
+        const p = qbez(p0, p1, tok.hover, u);
+        s = { x: p.x, y: p.y, rot: lerp(tok.startRot, tok.startRot * 0.4, u), scale: lerp(tok.startScale, 0.86, u), w: tok.w };
+      } else if (t < tok.release) {
+        // QUEUE at the mouth: waiting its turn, small independent jitter
+        s = { x: tok.hover.x + tok.jx(t) * 2, y: tok.hover.y + tok.jy(t) * 2, rot: tok.startRot * 0.4, scale: 0.86, w: tok.w };
+      } else if (t < tok.land) {
+        // SEQUENCE: through the gate, then a downward drift to its lane — landing exactly on the beat
+        const u1 = remap(t, tok.release, tok.release + 0.2);
+        if (u1 < 1) {
+          const e = ease.in(u1);
+          s = { x: lerp(tok.hover.x, GATE.x, e), y: lerp(tok.hover.y, GATE.y, e), rot: lerp(tok.startRot * 0.4, tok.irr.rot, e), scale: lerp(0.86, 0.66, e), w: tok.w };
+        } else {
+          const u = ease.out(remap(t, tok.release + 0.2, tok.land));
+          const slot = grow(tok.irr, t);
+          s = { x: lerp(GATE.x, slot.x, u), y: lerp(GATE.y, slot.y, u), rot: tok.irr.rot, scale: lerp(0.66, tok.irr.scale, u), w: tok.w };
+        }
+      } else {
+        // LANDED (irregular) → NORMALIZE (uniform) — positions ride the container's growth
+        const n = ease.inOut(remap(t, tok.normAt, tok.normAt + 0.7));
+        const a = grow(tok.irr, t), b = grow(tok.norm, t);
+        const settle = ease.settle(remap(t, tok.land, tok.land + 0.28));
+        s = {
+          x: lerp(a.x, b.x, n), y: lerp(a.y, b.y, n),
+          rot: lerp(tok.irr.rot, 0, n),
+          scale: lerp(tok.irr.scale, 1, n) * settle * (1 + beatPulse * (dot ? 2.2 : 1)),
+          w: dot ? undefined : lerp(tok.irr.w, W_U, n),
+          labelOpacity: tok.spec.kind === 'frag' ? n : 1,
+        };
+        if (dot) { tok.circle.setAttribute('r', lerp(tok.r, 10, n)); }
+      }
+      tok.set(s);
+    }
+    // loop dip to cream
+    veil.setAttribute('opacity', Math.max(remap(t, DUR - 0.35, DUR), 1 - remap(t, 0, 0.35)));
+  }
+
+  const tl = new Timeline({
+    duration: DUR, render, title: 'Stage 2', subtitle: 'transform — capture · sequence · normalize', mount,
+    phases: [
+      { name: 'capture', from: 0.25, to: L0 + (tokens.length - 1) * BEAT - DROP },
+      { name: 'sequence', from: L0 - DROP, to: L0 + (tokens.length - 1) * BEAT + 0.3 },
+      { name: 'normalize', from: N0, to: HOLD0 },
+      { name: 'one rhythm', from: HOLD0, to: DUR },
+    ],
+  });
+  tl.play();
+  return tl;
+};

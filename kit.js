@@ -89,25 +89,25 @@
 
   // ---------- timeline + viewer chrome ----------
   class Timeline {
-    constructor({ duration, render, loopStart = 0, phases = [], title = '', subtitle = '' }) {
-      Object.assign(this, { duration, render, loopStart, phases, t: 0, playing: false, loop: true });
+    constructor({ duration, render, loopStart = 0, phases = [], title = '', subtitle = '', mount = document.body }) {
+      Object.assign(this, { duration, render, loopStart, phases, t: 0, playing: false, loop: true, alive: true });
       this._last = null;
-      this.buildBar(title, subtitle);
+      this.buildBar(title, subtitle, mount);
       this.seek(0);
       this._tick = this._tick.bind(this);
       requestAnimationFrame(this._tick);
     }
-    buildBar(title, subtitle) {
-      const bar = document.createElement('div'); bar.className = 'bar';
+    destroy() { this.alive = false; this.playing = false; window.removeEventListener('keydown', this._keys); this.bar.remove(); }
+    buildBar(title, subtitle, mount) {
+      const bar = document.createElement('div'); bar.className = 'bar'; this.bar = bar;
       bar.innerHTML = `
         <div class="title">${title}<span>${subtitle}</span></div>
         <button class="play">Pause</button>
         <button class="ghost replay">Replay</button>
         <input type="range" min="0" max="${this.duration}" step="0.01" value="0">
         <div class="time"></div>
-        <div class="phases">${this.phases.map((p) => `<div class="phase">${p.name}</div>`).join('')}</div>
-        <a href="index.html">chapters</a>`;
-      document.body.appendChild(bar);
+        <div class="phases">${this.phases.map((p) => `<div class="phase">${p.name}</div>`).join('')}</div>`;
+      mount.appendChild(bar);
       this.ui = {
         play: bar.querySelector('.play'), range: bar.querySelector('input'), time: bar.querySelector('.time'),
         phases: [...bar.querySelectorAll('.phase')],
@@ -115,12 +115,14 @@
       this.ui.play.onclick = () => (this.playing ? this.pause() : this.play());
       bar.querySelector('.replay').onclick = () => { this.seek(0); this.play(); };
       this.ui.range.oninput = (e) => { this.pause(); this.seek(parseFloat(e.target.value)); };
-      window.addEventListener('keydown', (e) => {
+      this._keys = (e) => {
+        if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && e.code !== 'Space') return;
         if (e.code === 'Space') { e.preventDefault(); this.playing ? this.pause() : this.play(); }
-        if (e.code === 'ArrowRight') { this.pause(); this.seek(Math.min(this.duration, this.t + (e.shiftKey ? 1 : 1 / 30))); }
-        if (e.code === 'ArrowLeft') { this.pause(); this.seek(Math.max(0, this.t - (e.shiftKey ? 1 : 1 / 30))); }
+        if (e.code === 'ArrowRight') { e.preventDefault(); this.pause(); this.seek(Math.min(this.duration, this.t + (e.shiftKey ? 1 : 1 / 30))); }
+        if (e.code === 'ArrowLeft') { e.preventDefault(); this.pause(); this.seek(Math.max(0, this.t - (e.shiftKey ? 1 : 1 / 30))); }
         if (e.key === 'r') { this.seek(0); this.play(); }
-      });
+      };
+      window.addEventListener('keydown', this._keys);
     }
     play() { this.playing = true; this._last = null; this.ui.play.textContent = 'Pause'; }
     pause() { this.playing = false; this.ui.play.textContent = 'Play'; }
@@ -130,6 +132,7 @@
       this.ui.phases.forEach((p, i) => p.classList.toggle('on', t >= this.phases[i].from && t < this.phases[i].to));
     }
     _tick(now) {
+      if (!this.alive) return;
       if (this.playing) {
         if (this._last != null) {
           let t = this.t + (now - this._last) / 1000;
@@ -143,5 +146,5 @@
     }
   }
 
-  global.BF = { KIT, clamp01, lerp, remap, ease, rng, makeDrift, pulse, el, makeToken, Timeline };
+  global.BF = { KIT, clamp01, lerp, remap, ease, rng, makeDrift, pulse, el, makeToken, Timeline, scenes: {} };
 })(window);

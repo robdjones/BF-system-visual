@@ -66,3 +66,11 @@ its growth as a slow downward drift. Loop closes with a short dip to cream.
 - Stage 2: explicit row plan (18 tokens) so the stack fills the triangle cleanly; wider triangle, apex lower
   so the queue has headroom; queue spread wider; sweep faster (0.22s/row) and hold starts after it; total 13s.
 - Added chapter index, motion stats script, fragment flicker (Stage 1), stronger bead pulse in the hold.
+### Pass 3 → changes
+- Stage 2: capture arcs were leaving the frame and the queue clipped at the top edge → arc control point
+  clamped inside the canvas, queue band lowered; loop shortened to 12.5s so the hold is not dead time;
+  bead pulse in the hold stronger than pill pulse. Lane-up now happens at landing (y exact on the row,
+  x/rotation/size/width still irregular) so *sequence* owns order + lanes + beat and *normalize* owns uniformity.
+- Stage 1: fragment flicker softened (0.6 floor) so dips read as "unresolved", not as grey tokens.
+- Structure: scenes moved to `scenes/*.js` modules; `index.html` is now a chapter viewer that mounts one
+  isolated scene at a time (keys 1 / 2); `build.mjs` inlines everything into `dist/` for a single-link publish.

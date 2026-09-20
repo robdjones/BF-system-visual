@@ -1,0 +1,482 @@
+<title>Bloomfilter System Motion</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>
+/* Bloomfilter system motion prototype — shared kit
+   Reel-faithful flat language: cream field, solid shapes, black stadium pills, white grotesque, colored beads.
+   Single committed look (cream) by design: the scenes are the artwork, so no dark-theme variant. */
+:root {
+  --cream: #FCF3E1;
+  --ink: #111111;
+  --white: #FFFFFF;
+  --orchid: #F090F0;      /* container signal color (reel) — swap here if a Bloomfilter color is chosen */
+  --dot-orange: #F26B21;
+  --dot-yellow: #F5C400;
+  --dot-purple: #6A4CFF;
+  --dot-olive: #7A8A2E;
+  --rule: rgba(17,17,17,0.14);
+  --font: "Inter", "Helvetica Neue", Helvetica, Arial, "Liberation Sans", sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--cream); color: var(--ink); font-family: var(--font); }
+body { display: flex; flex-direction: column; min-height: 100%; }
+.stage-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: 16px; min-height: 0; }
+svg.stage { width: 100%; height: 100%; max-height: calc(100vh - 88px); max-width: 100%; display: block; }
+svg.stage text { font-family: var(--font); font-weight: 500; fill: var(--white); pointer-events: none; user-select: none; }
+
+/* viewer chrome (not part of the scene) */
+.bar {
+  display: flex; align-items: center; gap: 14px; padding: 12px 16px; flex-wrap: wrap;
+  border-top: 1px solid var(--rule); font-size: 13px; letter-spacing: 0.01em;
+}
+.bar .title { font-weight: 600; white-space: nowrap; }
+.bar .title span { font-weight: 400; opacity: 0.55; margin-left: 8px; }
+.bar button, .chapters button {
+  font: inherit; font-size: 13px; font-weight: 600; background: var(--ink); color: var(--white); border: 0; border-radius: 999px;
+  padding: 6px 14px; cursor: pointer; min-width: 64px;
+}
+.bar button.ghost, .chapters button { background: transparent; color: var(--ink); border: 1px solid rgba(17,17,17,0.25); }
+.bar button:focus-visible, .chapters button:focus-visible, .bar input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.bar input[type=range] { flex: 1; accent-color: var(--ink); min-width: 120px; }
+.bar .time { font-variant-numeric: tabular-nums; min-width: 96px; text-align: right; opacity: 0.7; }
+.bar .phases { display: flex; gap: 6px; }
+.bar .phase { padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(17,17,17,0.2); opacity: 0.45; transition: opacity .15s, background .15s, color .15s; }
+.bar .phase.on { opacity: 1; background: var(--ink); color: var(--white); border-color: var(--ink); }
+
+/* chapter switch (index / combined viewer) */
+.chapters { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--rule); font-size: 13px; flex-wrap: wrap; }
+.chapters .name { font-weight: 600; margin-right: 6px; }
+.chapters .name span { font-weight: 400; opacity: .55; margin-left: 8px; }
+.chapters button.on { background: var(--ink); color: var(--white); border-color: var(--ink); }
+.chapters .hint { margin-left: auto; opacity: .55; }
+@media (max-width: 720px) { .bar .phases, .bar .title span, .chapters .hint, .chapters .name span { display: none; } }
+@media (prefers-reduced-motion: reduce) { .bar .phase { transition: none; } }
+
+html, body { height: 100%; }
+body { padding-inline: 0; }
+.chapters { padding-top: calc(12px + env(safe-area-inset-top, 0px)); }
+.bar { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+</style>
+
+<nav class="chapters" aria-label="Chapters">
+  <span class="name">Bloomfilter · System motion<span>two isolated stages</span></span>
+  <button type="button" data-scene="pile" id="ch-pile">1 · Pile</button>
+  <button type="button" data-scene="transform" id="ch-transform">2 · Transform</button>
+  <span class="hint">1 / 2 switch · space play · ← → step · R replay</span>
+</nav>
+<div class="stage-wrap"><svg class="stage" viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Motion scene"></svg></div>
+<script>
+/* Bloomfilter system motion prototype — shared runtime
+   Deterministic: every frame is a pure function of time t, so scenes are scrubbable and loop exactly. */
+(function (global) {
+  const KIT = {
+    cream: '#FCF3E1', ink: '#111111', white: '#FFFFFF', orchid: '#F090F0',
+    dots: ['#F26B21', '#F5C400', '#6A4CFF', '#7A8A2E'],
+    pillH: 42, font: 19, padX: 20, dotR: 10,
+  };
+
+  // ---------- math ----------
+  const clamp01 = (x) => (x < 0 ? 0 : x > 1 ? 1 : x);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const remap = (t, a, b) => clamp01((t - a) / (b - a));
+  const ease = {
+    linear: (t) => t,
+    in: (t) => t * t * t,
+    out: (t) => 1 - Math.pow(1 - t, 3),
+    inOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+    outLong: (t) => 1 - Math.pow(1 - t, 5),
+    smooth: (t) => t * t * (3 - 2 * t),
+    // quick pop: overshoot-free settle (scale 1.06 -> 1)
+    settle: (t) => 1 + 0.06 * (1 - t) * Math.sin(t * Math.PI),
+  };
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  const rng = (seed) => {
+    const r = mulberry32(seed);
+    return { f: r, range: (a, b) => a + (b - a) * r(), pick: (arr) => arr[Math.floor(r() * arr.length)], sign: () => (r() < 0.5 ? -1 : 1) };
+  };
+  // periodic "independent drift": sum of sines whose periods divide loopLen -> seamless
+  function makeDrift(r, loopLen, amp, ks) {
+    const comps = ks.map((k) => ({ k, ph: r.range(0, Math.PI * 2), a: amp * r.range(0.5, 1) / Math.sqrt(k) }));
+    return (t) => comps.reduce((s, c) => s + c.a * Math.sin((2 * Math.PI * c.k * t) / loopLen + c.ph), 0);
+  }
+  // a short one-off pulse of width w starting at t0, returns 0..1..0
+  const pulse = (t, t0, w) => { const u = (t - t0) / w; return u <= 0 || u >= 1 ? 0 : Math.sin(u * Math.PI); };
+
+  // ---------- svg ----------
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (name, attrs = {}, parent) => {
+    const e = document.createElementNS(NS, name);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  };
+
+  // Token: pill (label), frag (blank pill, "unfinished"), dot (bead)
+  function makeToken(parent, spec) {
+    const g = el('g', { class: 'tok ' + spec.kind }, parent);
+    const tok = { spec, g, w: 0, h: KIT.pillH };
+    if (spec.kind === 'dot') {
+      tok.r = spec.r || KIT.dotR;
+      tok.circle = el('circle', { r: tok.r, fill: spec.color || KIT.dots[0] }, g);
+      tok.w = tok.r * 2; tok.h = tok.r * 2;
+    } else {
+      tok.rect = el('rect', { height: KIT.pillH, rx: KIT.pillH / 2, ry: KIT.pillH / 2, fill: KIT.ink }, g);
+      if (spec.kind === 'pill') {
+        tok.text = el('text', { 'font-size': KIT.font, 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 0 }, g);
+        tok.text.textContent = spec.label;
+        tok.w = tok.text.getComputedTextLength() + KIT.padX * 2;
+      } else {
+        tok.w = spec.w || 70;
+        // frag may later gain a label (resolution)
+        tok.text = el('text', { 'font-size': KIT.font, 'text-anchor': 'middle', 'dominant-baseline': 'central', y: 0, opacity: 0 }, g);
+        tok.text.textContent = spec.label || '';
+      }
+      tok.setWidth = (w) => {
+        tok.rect.setAttribute('width', w); tok.rect.setAttribute('x', -w / 2); tok.rect.setAttribute('y', -KIT.pillH / 2);
+      };
+      tok.setWidth(tok.w);
+    }
+    tok.set = (s) => {
+      const sc = s.scale == null ? 1 : s.scale;
+      g.setAttribute('transform', `translate(${s.x.toFixed(2)} ${s.y.toFixed(2)}) rotate(${(s.rot || 0).toFixed(2)}) scale(${sc.toFixed(4)})`);
+      g.setAttribute('opacity', s.opacity == null ? 1 : s.opacity);
+      if (s.w != null && tok.setWidth) tok.setWidth(s.w);
+      if (s.labelOpacity != null && tok.text) tok.text.setAttribute('opacity', s.labelOpacity);
+      if (s.visible === false) g.setAttribute('display', 'none'); else g.removeAttribute('display');
+    };
+    return tok;
+  }
+
+  // ---------- timeline + viewer chrome ----------
+  class Timeline {
+    constructor({ duration, render, loopStart = 0, phases = [], title = '', subtitle = '', mount = document.body }) {
+      Object.assign(this, { duration, render, loopStart, phases, t: 0, playing: false, loop: true, alive: true });
+      this._last = null;
+      this.buildBar(title, subtitle, mount);
+      this.seek(0);
+      this._tick = this._tick.bind(this);
+      requestAnimationFrame(this._tick);
+    }
+    destroy() { this.alive = false; this.playing = false; window.removeEventListener('keydown', this._keys); this.bar.remove(); }
+    buildBar(title, subtitle, mount) {
+      const bar = document.createElement('div'); bar.className = 'bar'; this.bar = bar;
+      bar.innerHTML = `
+        <div class="title">${title}<span>${subtitle}</span></div>
+        <button class="play">Pause</button>
+        <button class="ghost replay">Replay</button>
+        <input type="range" min="0" max="${this.duration}" step="0.01" value="0">
+        <div class="time"></div>
+        <div class="phases">${this.phases.map((p) => `<div class="phase">${p.name}</div>`).join('')}</div>`;
+      mount.appendChild(bar);
+      this.ui = {
+        play: bar.querySelector('.play'), range: bar.querySelector('input'), time: bar.querySelector('.time'),
+        phases: [...bar.querySelectorAll('.phase')],
+      };
+      this.ui.play.onclick = () => (this.playing ? this.pause() : this.play());
+      bar.querySelector('.replay').onclick = () => { this.seek(0); this.play(); };
+      this.ui.range.oninput = (e) => { this.pause(); this.seek(parseFloat(e.target.value)); };
+      this._keys = (e) => {
+        if (e.target && /INPUT|TEXTAREA|SELECT/.test(e.target.tagName) && e.code !== 'Space') return;
+        if (e.code === 'Space') { e.preventDefault(); this.playing ? this.pause() : this.play(); }
+        if (e.code === 'ArrowRight') { e.preventDefault(); this.pause(); this.seek(Math.min(this.duration, this.t + (e.shiftKey ? 1 : 1 / 30))); }
+        if (e.code === 'ArrowLeft') { e.preventDefault(); this.pause(); this.seek(Math.max(0, this.t - (e.shiftKey ? 1 : 1 / 30))); }
+        if (e.key === 'r') { this.seek(0); this.play(); }
+      };
+      window.addEventListener('keydown', this._keys);
+    }
+    play() { this.playing = true; this._last = null; this.ui.play.textContent = 'Pause'; }
+    pause() { this.playing = false; this.ui.play.textContent = 'Play'; }
+    seek(t) {
+      this.t = t; this.render(t);
+      this.ui.range.value = t; this.ui.time.textContent = `${t.toFixed(2)} / ${this.duration.toFixed(2)}s`;
+      this.ui.phases.forEach((p, i) => p.classList.toggle('on', t >= this.phases[i].from && t < this.phases[i].to));
+    }
+    _tick(now) {
+      if (!this.alive) return;
+      if (this.playing) {
+        if (this._last != null) {
+          let t = this.t + (now - this._last) / 1000;
+          if (t >= this.duration) t = this.loop ? this.loopStart + (t - this.duration) : this.duration;
+          this.seek(t);
+          if (!this.loop && t >= this.duration) this.pause();
+        }
+        this._last = now;
+      }
+      requestAnimationFrame(this._tick);
+    }
+  }
+
+  global.BF = { KIT, clamp01, lerp, remap, ease, rng, makeDrift, pulse, el, makeToken, Timeline, scenes: {} };
+})(window);
+
+/* STAGE 1 — Unorganized systems pile
+   Concept: work systems, tools and measures sit as a disconnected mess. No shared sequence.
+   Motion job: irregular accretion, independent drift, micro-jitter, no common rhythm. Nothing processed. */
+BF.scenes.pile = (svg, mount) => {
+  const { KIT, lerp, remap, ease, rng, makeDrift, pulse, el, makeToken, Timeline } = BF;
+  el('rect', { width: 1200, height: 800, fill: KIT.cream }, svg);
+  const layer = el('g', {}, svg);
+
+  const DUR = 12, LOOP_START = 7, LOOP = DUR - LOOP_START; // accretion 0–7s, then a seamless 5s drift loop
+  const r = rng(1039);
+
+  // token specs — approximate, diagrammatic labels (not product logos)
+  const labels = ['Jira', 'GitHub', 'Agents', 'Copilot', 'Cursor', 'PRs', 'Tickets', 'Sessions', 'Tokens', 'Cycle time', 'Rework', 'Handoffs', 'Deploys', 'Models', 'Traces', 'Sprints'];
+  const specs = [];
+  labels.forEach((label) => specs.push({ kind: 'pill', label }));
+  for (let i = 0; i < 5; i++) specs.push({ kind: 'frag', w: r.range(34, 110) });
+  for (let i = 0; i < 14; i++) specs.push({ kind: 'dot', color: r.pick(KIT.dots), r: r.range(7, 12) });
+
+  // scatter inside an irregular blob (lower-left of centre) — protect empty space top/right
+  const C = { x: 470, y: 500 };
+  const tokens = specs.map((spec, i) => {
+    const tok = makeToken(layer, spec);
+    const ang = r.range(0, Math.PI * 2), rad = Math.pow(r.f(), 0.6);
+    const base = { x: C.x + Math.cos(ang) * rad * 340 + r.range(-40, 40), y: C.y + Math.sin(ang) * rad * 200 + r.range(-30, 30) };
+    // a few strays sit well outside the blob — the mess has no edge
+    if (i % 9 === 4) { base.x += r.sign() * r.range(140, 220); base.y += r.sign() * r.range(60, 120); }
+    tok.base = base;
+    tok.rot = spec.kind === 'dot' ? 0 : r.range(-30, 30);
+    tok.scale = spec.kind === 'dot' ? 1 : r.range(0.72, 1.28);
+    tok.spawn = 0; // set below
+    tok.spawnDur = r.range(0.45, 0.9);
+    tok.dropFrom = r.range(-70, -140);
+    tok.driftX = makeDrift(r, LOOP, r.range(6, 16), [1, 2, 3]);
+    tok.driftY = makeDrift(r, LOOP, r.range(6, 16), [1, 2, 3]);
+    tok.jitterX = makeDrift(r, LOOP, r.range(0.6, 2.2), [7, 11]);
+    tok.jitterY = makeDrift(r, LOOP, r.range(0.6, 2.2), [9, 13]);
+    tok.wobble = makeDrift(r, LOOP, spec.kind === 'dot' ? 0 : r.range(1.5, 5), [1, 2]);
+    // twitches: 0–2 sudden small jumps per loop, at random moments — no shared beat
+    tok.twitches = Array.from({ length: Math.floor(r.range(0, 3)) }, () => ({ t: r.range(0, LOOP), dx: r.range(-9, 9), dy: r.range(-9, 9), w: r.range(0.18, 0.3) }));
+    // unfinished fragments flicker: brief opacity dips at their own moments (unresolved state)
+    tok.flickers = spec.kind === 'frag' ? Array.from({ length: 2 }, () => ({ t: r.range(0, LOOP), w: r.range(0.35, 0.7) })) : [];
+    return tok;
+  });
+
+  // light relaxation: keep centres apart enough that labels stay legible, but still allow overlap (it is a pile)
+  const minD = (a, b) => (a.spec.kind === 'dot' && b.spec.kind === 'dot' ? 28 : a.spec.kind === 'dot' || b.spec.kind === 'dot' ? 46 : 90);
+  for (let it = 0; it < 80; it++) {
+    for (let i = 0; i < tokens.length; i++) for (let j = i + 1; j < tokens.length; j++) {
+      const a = tokens[i].base, b = tokens[j].base, d = minD(tokens[i], tokens[j]);
+      let dx = b.x - a.x, dy = (b.y - a.y) * 1.6; const dist = Math.hypot(dx, dy) || 0.01;
+      if (dist < d) { const push = (d - dist) / dist * 0.5; a.x -= dx * push; a.y -= dy * push / 1.6; b.x += dx * push; b.y += dy * push / 1.6; }
+    }
+    for (const tok of tokens) { tok.base.x = Math.min(1080, Math.max(120, tok.base.x)); tok.base.y = Math.min(700, Math.max(150, tok.base.y)); }
+  }
+
+  // spawn order: irregular gaps (clumps and pauses) — not on a beat
+  let t = 0.35;
+  const order = tokens.slice().sort(() => r.f() - 0.5);
+  order.forEach((tok, i) => { tok.spawn = t; t += r.f() < 0.35 ? r.range(0.02, 0.08) : r.range(0.12, 0.42); });
+  const scaleT = 6.6 / t; // squeeze accretion into 0–7s
+  order.forEach((tok) => (tok.spawn *= scaleT));
+
+  function render(t) {
+    const lt = ((t - LOOP_START) % LOOP + LOOP) % LOOP; // loop-local time (periodic)
+    for (const tok of tokens) {
+      const u = remap(t, tok.spawn, tok.spawn + tok.spawnDur);
+      if (u <= 0) { tok.set({ x: 0, y: 0, visible: false }); continue; }
+      const eu = ease.out(u);
+      let dx = tok.driftX(lt) + tok.jitterX(lt), dy = tok.driftY(lt) + tok.jitterY(lt);
+      for (const tw of tok.twitches) { const p = pulse(lt, tw.t, tw.w); dx += tw.dx * p; dy += tw.dy * p; }
+      let op = 1;
+      for (const fl of tok.flickers) op -= 0.4 * pulse(lt, fl.t, fl.w);
+      tok.set({
+        x: tok.base.x + dx,
+        y: tok.base.y + lerp(tok.dropFrom, 0, ease.outLong(u)) + dy,   // downward drift on entry
+        rot: tok.rot + tok.wobble(lt),
+        scale: tok.scale * eu,                                          // uniform scale-up on entry
+        opacity: op,
+      });
+    }
+  }
+
+  const tl = new Timeline({ duration: DUR, loopStart: LOOP_START, render, title: 'Stage 1', subtitle: 'unorganized systems pile', phases: [], mount });
+  tl.play();
+  return tl;
+};
+
+/* STAGE 2 — Transformation (steerage)
+   Concept: Bloomfilter captures the mess and runs it through transformation — sequencing and normalizing.
+   Motion job, in order:
+     CAPTURE   — scattered tokens are pulled to one gate (the apex) and admitted, irregular arrival, queue at the mouth
+     SEQUENCE  — released one-after-another on a strict beat, landing in lanes; order appears
+     NORMALIZE — a sweep resolves irregular tokens (size, rotation, width, unknowns) to uniform units on a grid
+     HOLD      — everything breathes on one shared rhythm; the container keeps growing smoothly */
+BF.scenes.transform = (svg, mount) => {
+  const { KIT, lerp, remap, ease, rng, makeDrift, pulse, el, makeToken, Timeline } = BF;
+  el('rect', { width: 1200, height: 800, fill: KIT.cream }, svg);
+  const tri = el('polygon', { fill: KIT.orchid }, svg);
+  const layer = el('g', {}, svg);
+  const veil = el('rect', { width: 1200, height: 800, fill: KIT.cream, opacity: 0, 'pointer-events': 'none' }, svg);
+
+  const DUR = 12.5, BEAT = 0.3, L0 = 2.4, DROP = 0.75, TRAVEL = 0.9, N0 = 8.2, HOLD0 = 10.2;
+  const APEX = { x: 600, y: 150 }, H_FINAL = 590, SLOPE = 0.64, W_U = 150, GAP = 16;
+  const r = rng(5500);
+  const growth = (t) => lerp(0.6, 1.0, ease.outLong(t / DUR));            // smooth, steady growth (long ease)
+  const triH = (t) => growth(t) * H_FINAL;
+  const grow = (p, t) => ({ x: APEX.x + (p.x - APEX.x) * growth(t), y: APEX.y + (p.y - APEX.y) * growth(t) });
+
+  // tokens in landing order. 'P' pill, 'F' frag (unfinished → resolved), 'd' bead.
+  // The plan is chosen so rows fill the triangle bottom-up: 5 · 3 · 4 · 2 · 3 · 1
+  const plan = 'PdPPd PPP PdFd PP Fdd P'.replace(/ /g, '');
+  const labels = ['Jira', 'GitHub', 'Agents', 'Copilot', 'Cursor', 'PRs', 'Tickets', 'Sessions', 'Tokens', 'Cycle time', 'Rework', 'Handoffs'];
+  const fragLabels = ['Deploys', 'Traces'];
+  const specs = [];
+  let li = 0, di = 0, fi = 0;
+  for (const c of plan) {
+    if (c === 'P') specs.push({ kind: 'pill', label: labels[li++] });
+    else if (c === 'F') specs.push({ kind: 'frag', w: r.range(40, 100), label: fragLabels[fi++] });
+    else { specs.push({ kind: 'dot', color: KIT.dots[di % 4], r: r.range(6, 13) }); di++; }
+  }
+  const tokens = specs.map((spec) => makeToken(layer, spec));
+
+  // ---- slot layout (final geometry): rows packed bottom-up in landing order, using normalized widths
+  const rows = []; let k = 0, cursor = 0;
+  while (cursor < tokens.length) {
+    const y = APEX.y + H_FINAL - 46 - k * 58, hw = SLOPE * (y - APEX.y) - 30;
+    const row = { y, items: [], width: 0 };
+    while (cursor < tokens.length) {
+      const tok = tokens[cursor], w = tok.spec.kind === 'dot' ? 24 : W_U;
+      const next = row.width + (row.items.length ? GAP : 0) + w;
+      if (next > hw * 2 && row.items.length) break;
+      row.items.push(tok); row.width = next; cursor++;
+    }
+    rows.push(row); k++;
+  }
+  rows.forEach((row, ri) => {
+    let x = 600 - row.width / 2;
+    row.items.forEach((tok) => {
+      const w = tok.spec.kind === 'dot' ? 24 : W_U;
+      tok.row = ri;
+      tok.norm = { x: x + w / 2, y: row.y, rot: 0, scale: 1, w: W_U, r: 10 };
+      tok.irr = { x: x + w / 2 + r.range(-16, 16), y: row.y, rot: tok.spec.kind === 'dot' ? 0 : r.range(-20, 20), scale: tok.spec.kind === 'dot' ? 1 : r.range(0.78, 1.22), w: tok.w };
+      x += w + GAP;
+    });
+  });
+  const ROWS = rows.length;
+
+  // ---- timing per token: strict landings; irregular captures; a queue forms at the gate
+  tokens.forEach((tok, i) => {
+    tok.land = L0 + i * BEAT;
+    tok.release = tok.land - DROP;
+    const wait = r.range(0.15, 1.7);
+    tok.capture = Math.max(0.25 + r.range(0, 0.2), tok.release - TRAVEL - wait);
+    tok.arrive = tok.capture + TRAVEL;
+    // start outside the container, in the left or right band, irregular
+    const side = i % 2 === 0 ? -1 : 1;
+    tok.start = { x: 600 + side * r.range(400, 520), y: r.range(150, 660) };
+    tok.startRot = tok.spec.kind === 'dot' ? 0 : r.range(-30, 30);
+    tok.startScale = tok.spec.kind === 'dot' ? 1 : r.range(0.72, 1.28);
+    tok.hover = { x: APEX.x + r.range(-120, 120), y: APEX.y - r.range(34, 92) };
+    tok.driftX = makeDrift(r, DUR, r.range(5, 12), [2, 3, 5]);
+    tok.driftY = makeDrift(r, DUR, r.range(5, 12), [2, 3, 5]);
+    tok.jx = makeDrift(r, DUR, 1.5, [11, 17]);
+    tok.jy = makeDrift(r, DUR, 1.5, [13, 19]);
+    tok.normAt = N0 + (ROWS - 1 - tok.row) * 0.22 + r.range(0, 0.06);   // sweep top → bottom
+  });
+  // light relaxation of the outside scatter so labels stay legible
+  for (let it = 0; it < 60; it++) for (let i = 0; i < tokens.length; i++) for (let j = i + 1; j < tokens.length; j++) {
+    const a = tokens[i].start, b = tokens[j].start; let dx = b.x - a.x, dy = (b.y - a.y) * 1.5; const dist = Math.hypot(dx, dy) || 0.01, d = 70;
+    if (dist < d) { const push = (d - dist) / dist * 0.5; a.x -= dx * push; a.y -= dy * push / 1.5; b.x += dx * push; b.y += dy * push / 1.5; }
+  }
+  tokens.forEach((tok) => { tok.start.x = Math.min(1110, Math.max(90, tok.start.x)); tok.start.y = Math.min(700, Math.max(140, tok.start.y)); });
+
+  const qbez = (p0, p1, p2, u) => ({ x: (1 - u) * (1 - u) * p0.x + 2 * (1 - u) * u * p1.x + u * u * p2.x, y: (1 - u) * (1 - u) * p0.y + 2 * (1 - u) * u * p1.y + u * u * p2.y });
+  const GATE = { x: APEX.x, y: APEX.y + 26 };
+
+  function render(t) {
+    // container: apex locked, growing steadily
+    const H = triH(t), hw = SLOPE * H;
+    tri.setAttribute('points', `${APEX.x},${APEX.y} ${APEX.x + hw},${APEX.y + H} ${APEX.x - hw},${APEX.y + H}`);
+    const beatPulse = t >= HOLD0 ? pulse(((t - HOLD0) % 0.6), 0, 0.28) * 0.035 : 0; // one shared rhythm in the hold
+
+    for (const tok of tokens) {
+      const dot = tok.spec.kind === 'dot';
+      let s;
+      if (t < tok.capture) {
+        // outside: jittering, independent, irregular
+        s = { x: tok.start.x + tok.driftX(t) + tok.jx(t), y: tok.start.y + tok.driftY(t) + tok.jy(t), rot: tok.startRot, scale: tok.startScale, w: tok.w };
+      } else if (t < tok.arrive) {
+        // CAPTURE: pulled along an arc into the gate; already calming (rotation halves, size settles)
+        const u = ease.inOut(remap(t, tok.capture, tok.arrive));
+        const p0 = { x: tok.start.x + tok.driftX(tok.capture) + tok.jx(tok.capture), y: tok.start.y + tok.driftY(tok.capture) + tok.jy(tok.capture) };
+        const p1 = { x: (p0.x + tok.hover.x) / 2, y: Math.max(34, Math.min(p0.y, tok.hover.y) - 90) }; // arc stays in frame
+        const p = qbez(p0, p1, tok.hover, u);
+        s = { x: p.x, y: p.y, rot: lerp(tok.startRot, tok.startRot * 0.4, u), scale: lerp(tok.startScale, 0.86, u), w: tok.w };
+      } else if (t < tok.release) {
+        // QUEUE at the mouth: waiting its turn, small independent jitter
+        s = { x: tok.hover.x + tok.jx(t) * 2, y: tok.hover.y + tok.jy(t) * 2, rot: tok.startRot * 0.4, scale: 0.86, w: tok.w };
+      } else if (t < tok.land) {
+        // SEQUENCE: through the gate, then a downward drift to its lane — landing exactly on the beat
+        const u1 = remap(t, tok.release, tok.release + 0.2);
+        if (u1 < 1) {
+          const e = ease.in(u1);
+          s = { x: lerp(tok.hover.x, GATE.x, e), y: lerp(tok.hover.y, GATE.y, e), rot: lerp(tok.startRot * 0.4, tok.irr.rot, e), scale: lerp(0.86, 0.66, e), w: tok.w };
+        } else {
+          const u = ease.out(remap(t, tok.release + 0.2, tok.land));
+          const slot = grow(tok.irr, t);
+          s = { x: lerp(GATE.x, slot.x, u), y: lerp(GATE.y, slot.y, u), rot: tok.irr.rot, scale: lerp(0.66, tok.irr.scale, u), w: tok.w };
+        }
+      } else {
+        // LANDED (irregular) → NORMALIZE (uniform) — positions ride the container's growth
+        const n = ease.inOut(remap(t, tok.normAt, tok.normAt + 0.7));
+        const a = grow(tok.irr, t), b = grow(tok.norm, t);
+        const settle = ease.settle(remap(t, tok.land, tok.land + 0.28));
+        s = {
+          x: lerp(a.x, b.x, n), y: lerp(a.y, b.y, n),
+          rot: lerp(tok.irr.rot, 0, n),
+          scale: lerp(tok.irr.scale, 1, n) * settle * (1 + beatPulse * (dot ? 2.2 : 1)),
+          w: dot ? undefined : lerp(tok.irr.w, W_U, n),
+          labelOpacity: tok.spec.kind === 'frag' ? n : 1,
+        };
+        if (dot) { tok.circle.setAttribute('r', lerp(tok.r, 10, n)); }
+      }
+      tok.set(s);
+    }
+    // loop dip to cream
+    veil.setAttribute('opacity', Math.max(remap(t, DUR - 0.35, DUR), 1 - remap(t, 0, 0.35)));
+  }
+
+  const tl = new Timeline({
+    duration: DUR, render, title: 'Stage 2', subtitle: 'transform — capture · sequence · normalize', mount,
+    phases: [
+      { name: 'capture', from: 0.25, to: L0 + (tokens.length - 1) * BEAT - DROP },
+      { name: 'sequence', from: L0 - DROP, to: L0 + (tokens.length - 1) * BEAT + 0.3 },
+      { name: 'normalize', from: N0, to: HOLD0 },
+      { name: 'one rhythm', from: HOLD0, to: DUR },
+    ],
+  });
+  tl.play();
+  return tl;
+};
+
+
+/* Chapter viewer: mounts ONE scene at a time so each stage stays an isolated, self-contained loop. */
+(() => {
+  const svg = document.querySelector('svg.stage');
+  const buttons = [...document.querySelectorAll('.chapters button')];
+  let current = null;
+  function show(name) {
+    if (current) { current.destroy(); current = null; }
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    window.TL = current = BF.scenes[name](svg, document.body);
+    buttons.forEach((b) => b.classList.toggle('on', b.dataset.scene === name));
+    try { localStorage.setItem('bf-chapter', name); } catch (e) {}
+  }
+  buttons.forEach((b) => (b.onclick = () => show(b.dataset.scene)));
+  window.addEventListener('keydown', (e) => { if (e.key === '1') show('pile'); if (e.key === '2') show('transform'); });
+  let start = 'pile';
+  try { start = localStorage.getItem('bf-chapter') || 'pile'; } catch (e) {}
+  const hash = location.hash.replace('#', '');
+  if (BF.scenes[hash]) start = hash;
+  show(start);
+})();
+</script>
