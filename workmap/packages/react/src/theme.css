@@ -1,0 +1,122 @@
+/* Work Map themes: CSS variables on the root <svg>. No colors in components. */
+.wm {
+  --wm-canvas: #0f1013;
+  --wm-lane: rgba(255, 255, 255, 0.025);
+  --wm-lane-line: rgba(255, 255, 255, 0.07);
+  --wm-track: #3f434c;
+  --wm-track-loop: #4b4f59;
+  --wm-human: #f7893b;
+  --wm-agent: #f26bd1;
+  --wm-either: #8b90a0;
+  --wm-route: #4c8dff;
+  --wm-split: #f5d33b;
+  --wm-govern: #f26bd1;
+  --wm-source: #5a5f6d;
+  --wm-end-open: #33363f;
+  --wm-end-done: #3fd07c;
+  --wm-end-text-done: #08140d;
+  --wm-plate: #1a1c22;
+  --wm-plate-stroke: #3b3f4a;
+  --wm-plate-text: #e8e9ee;
+  --wm-rivet: #6b7080;
+  --wm-model-a: #ffffff;
+  --wm-model-b: #f5d33b;
+  --wm-model-c: #62e6ff;
+  --wm-text: #e8e9ee;
+  --wm-muted: #8b90a0;
+  --wm-font: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-family: var(--wm-font);
+  background: var(--wm-canvas);
+  color: var(--wm-text);
+}
+.wm-theme-rave {
+  --wm-canvas: #07030f;
+  --wm-lane: rgba(140, 80, 255, 0.06);
+  --wm-lane-line: rgba(180, 120, 255, 0.18);
+  --wm-track: #5a2fa8;
+  --wm-track-loop: #7a3fd8;
+  --wm-human: #ff7a1a;
+  --wm-agent: #ff4fd8;
+  --wm-route: #2ee6ff;
+  --wm-split: #f9f871;
+  --wm-govern: #ff4fd8;
+  --wm-source: #7a5cff;
+  --wm-end-open: #24124a;
+  --wm-end-done: #39ff9a;
+  --wm-plate: #160b2e;
+  --wm-plate-stroke: #7a3fd8;
+  --wm-plate-text: #f4ecff;
+  --wm-rivet: #b48cff;
+  --wm-text: #f4ecff;
+  --wm-muted: #b48cff;
+}
+.wm-theme-plain {
+  --wm-canvas: #f6f5f1;
+  --wm-lane: rgba(0, 0, 0, 0.025);
+  --wm-lane-line: rgba(0, 0, 0, 0.09);
+  --wm-track: #b9b7b0;
+  --wm-track-loop: #a3a19a;
+  --wm-human: #e26d1c;
+  --wm-agent: #d63fb5;
+  --wm-either: #7a7d88;
+  --wm-route: #2f6fe0;
+  --wm-split: #e0b800;
+  --wm-govern: #d63fb5;
+  --wm-source: #8a8d98;
+  --wm-end-open: #dedcd5;
+  --wm-end-done: #2fbf6a;
+  --wm-end-text-done: #08140d;
+  --wm-plate: #ffffff;
+  --wm-plate-stroke: #c9c7bf;
+  --wm-plate-text: #1a1b1f;
+  --wm-rivet: #b0aea6;
+  --wm-model-a: #1a1b1f;
+  --wm-model-b: #b38f00;
+  --wm-model-c: #0a8aa6;
+  --wm-text: #1a1b1f;
+  --wm-muted: #6c6f7a;
+}
+
+svg.wm-svg { display: block; width: 100%; height: 100%; background: var(--wm-canvas); touch-action: none; user-select: none; }
+.wm-svg text { font-family: var(--wm-font); fill: var(--wm-plate-text); }
+.wm-lane-label text { fill: var(--wm-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+.wm-node { cursor: pointer; }
+.wm-node:focus-visible { outline: none; }
+.wm-node:focus-visible .wm-glyph { stroke: var(--wm-text); stroke-width: 2; }
+.wm-node.wm-selected .wm-glyph { stroke: var(--wm-text); stroke-width: 2.5; }
+.wm-end { cursor: pointer; }
+.wm-token { pointer-events: none; }
+.wm-svg .wm-dim { opacity: 0.14; }
+
+/* HUD + chrome */
+.wm-hud { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; font-family: var(--wm-font); color: var(--wm-text); }
+.wm-plate-el {
+  background: var(--wm-plate); border: 1px solid var(--wm-plate-stroke); border-radius: 4px; padding: 8px 12px;
+  position: relative; min-width: 96px; font-size: 12px; line-height: 1.25;
+}
+.wm-plate-el::before, .wm-plate-el::after, .wm-plate-el > .wm-rivets::before, .wm-plate-el > .wm-rivets::after {
+  content: ""; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: var(--wm-rivet);
+}
+.wm-plate-el::before { top: 3px; left: 3px; } .wm-plate-el::after { top: 3px; right: 3px; }
+.wm-plate-el > .wm-rivets::before { bottom: 3px; left: 3px; } .wm-plate-el > .wm-rivets::after { bottom: 3px; right: 3px; }
+.wm-plate-el .wm-k { color: var(--wm-muted); text-transform: uppercase; letter-spacing: 0.08em; font-size: 10px; }
+.wm-plate-el .wm-v { font-size: 18px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.wm-plate-el .wm-s { color: var(--wm-muted); font-size: 10px; margin-top: 2px; }
+.wm-btn {
+  font: inherit; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer;
+  background: var(--wm-plate); color: var(--wm-plate-text); border: 1px solid var(--wm-plate-stroke); border-radius: 999px; padding: 8px 14px;
+}
+.wm-btn:hover { border-color: var(--wm-text); }
+.wm-btn.wm-on { background: var(--wm-text); color: var(--wm-canvas); border-color: var(--wm-text); }
+.wm-btn:focus-visible { outline: 2px solid var(--wm-route); outline-offset: 2px; }
+.wm-toggle { display: inline-flex; gap: 4px; }
+.wm-table { border-collapse: collapse; font-size: 12px; width: 100%; font-variant-numeric: tabular-nums; }
+.wm-table th, .wm-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--wm-plate-stroke); }
+.wm-table th { color: var(--wm-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; }
+.wm-table td.num, .wm-table th.num { text-align: right; }
+.wm-modal-backdrop { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); display: grid; place-items: center; z-index: 50; padding: 16px; }
+.wm-modal { background: var(--wm-plate); color: var(--wm-plate-text); border: 1px solid var(--wm-plate-stroke); border-radius: 8px; padding: 18px; width: min(560px, 100%); max-height: 85vh; overflow: auto; font-family: var(--wm-font); }
+.wm-modal h3 { margin: 0 0 8px; font-size: 14px; letter-spacing: 0.06em; text-transform: uppercase; }
+.wm-modal p { margin: 0 0 8px; font-size: 13px; color: var(--wm-muted); }
+.wm-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .wm-token { transition: none; } }

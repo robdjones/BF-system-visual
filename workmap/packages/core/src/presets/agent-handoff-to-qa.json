@@ -1,0 +1,40 @@
+{
+  "name": "agent-handoff-to-qa",
+  "description": "Agents draft and implement; humans own the handoff into QA and sign-off. Human vs agent delta is the story.",
+  "theme": "play",
+  "stages": [
+    { "id": "intake", "label": "Intake", "order": 0 },
+    { "id": "plan", "label": "Plan", "order": 1 },
+    { "id": "build", "label": "Build", "order": 2 },
+    { "id": "qa", "label": "QA", "order": 3 },
+    { "id": "ship", "label": "Ship", "order": 4 }
+  ],
+  "nodes": [
+    { "id": "backlog", "stage": "intake", "kind": "source", "actor": "either", "label": "Backlog" },
+    { "id": "plan", "stage": "plan", "kind": "step", "actor": "agent", "label": "Plan" },
+    { "id": "implement", "stage": "build", "kind": "step", "actor": "agent", "label": "Implement" },
+    { "id": "tests", "stage": "build", "kind": "step", "actor": "agent", "label": "Write tests" },
+    { "id": "handoff", "stage": "qa", "kind": "route", "actor": "either", "label": "Handoff" },
+    { "id": "qa", "stage": "qa", "kind": "step", "actor": "human", "label": "QA" },
+    { "id": "signoff", "stage": "ship", "kind": "govern", "actor": "either", "label": "Sign-off" }
+  ],
+  "edges": [
+    { "id": "e0", "from": "backlog", "to": "plan", "weight": 1 },
+    { "id": "e1", "from": "plan", "to": "implement", "weight": 0.65 },
+    { "id": "e2", "from": "plan", "to": "tests", "weight": 0.35 },
+    { "id": "e3", "from": "implement", "to": "handoff", "weight": 1 },
+    { "id": "e4", "from": "tests", "to": "handoff", "weight": 1 },
+    { "id": "e5", "from": "handoff", "to": "qa", "weight": 0.85 },
+    { "id": "e6", "from": "handoff", "to": "implement", "weight": 0.15, "loop": true },
+    { "id": "e7", "from": "qa", "to": "signoff", "weight": 0.9 },
+    { "id": "e8", "from": "qa", "to": "orphan", "weight": 0.1 },
+    { "id": "e9", "from": "signoff", "to": "feature", "weight": 0.7 },
+    { "id": "e10", "from": "signoff", "to": "initiative", "weight": 0.3 }
+  ],
+  "endStates": [
+    { "id": "feature", "label": "Feature", "tone": "done" },
+    { "id": "initiative", "label": "Initiative", "tone": "done" },
+    { "id": "orphan", "label": "Orphan", "tone": "open" }
+  ],
+  "hints": { "tokens": 100, "ticks": 1000, "agentShare": 0.75 }
+}

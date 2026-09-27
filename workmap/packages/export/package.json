@@ -1,0 +1,1 @@
+{ "name": "@bloomfilter/workmap-export", "version": "0.1.0", "private": true, "type": "module", "bin": { "workmap-export": "./export.mjs" } }

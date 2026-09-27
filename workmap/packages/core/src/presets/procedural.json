@@ -1,0 +1,6 @@
+{
+  "name": "procedural",
+  "description": "No structure given: the generator invents stages, nodes, edges and loops from the seed. Refresh for a new map.",
+  "theme": "play",
+  "hints": { "stages": 5, "nodesPerStage": [1, 3], "agentShare": 0.5, "reworkChance": 0.6, "tokens": 90, "ticks": 1000 }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "model-split",
+  "description": "Same work, two models. A split node sends half the agent work to Model A and half to Model B; the scorecard compares them.",
+  "theme": "play",
+  "stages": [
+    { "id": "intake", "label": "Intake", "order": 0 },
+    { "id": "split", "label": "Split", "order": 1 },
+    { "id": "build", "label": "Build", "order": 2 },
+    { "id": "review", "label": "Review", "order": 3 }
+  ],
+  "nodes": [
+    { "id": "backlog", "stage": "intake", "kind": "source", "actor": "either", "label": "Backlog" },
+    { "id": "split", "stage": "split", "kind": "split", "actor": "either", "label": "Model A / B" },
+    { "id": "model-a", "stage": "build", "kind": "step", "actor": "agent", "label": "Model A" },
+    { "id": "model-b", "stage": "build", "kind": "step", "actor": "agent", "label": "Model B" },
+    { "id": "review", "stage": "review", "kind": "step", "actor": "human", "label": "Review" },
+    { "id": "policy", "stage": "review", "kind": "govern", "actor": "either", "label": "Policy check" }
+  ],
+  "edges": [
+    { "id": "e0", "from": "backlog", "to": "split", "weight": 1 },
+    { "id": "e1", "from": "split", "to": "model-a", "weight": 0.5 },
+    { "id": "e2", "from": "split", "to": "model-b", "weight": 0.5 },
+    { "id": "e3", "from": "model-a", "to": "review", "weight": 0.7 },
+    { "id": "e4", "from": "model-a", "to": "policy", "weight": 0.3 },
+    { "id": "e5", "from": "model-b", "to": "review", "weight": 0.5 },
+    { "id": "e6", "from": "model-b", "to": "policy", "weight": 0.5 },
+    { "id": "e7", "from": "review", "to": "feature", "weight": 0.75 },
+    { "id": "e8", "from": "review", "to": "model-b", "weight": 0.1, "loop": true },
+    { "id": "e9", "from": "review", "to": "canceled", "weight": 0.15 },
+    { "id": "e10", "from": "policy", "to": "feature", "weight": 0.8 },
+    { "id": "e11", "from": "policy", "to": "orphan", "weight": 0.2 }
+  ],
+  "endStates": [
+    { "id": "feature", "label": "Feature", "tone": "done" },
+    { "id": "orphan", "label": "Orphan", "tone": "open" },
+    { "id": "canceled", "label": "Canceled", "tone": "open" }
+  ],
+  "hints": { "tokens": 110, "ticks": 1000, "agentShare": 0.9, "models": ["Model A", "Model B"] }
+}

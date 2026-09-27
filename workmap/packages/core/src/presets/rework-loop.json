@@ -1,0 +1,33 @@
+{
+  "name": "rework-loop",
+  "description": "Work that keeps bouncing: QA sends a third of everything back to build, twice for some. Rework rate and cycle time are the story.",
+  "theme": "play",
+  "stages": [
+    { "id": "intake", "label": "Intake", "order": 0 },
+    { "id": "build", "label": "Build", "order": 1 },
+    { "id": "qa", "label": "QA", "order": 2 },
+    { "id": "release", "label": "Release", "order": 3 }
+  ],
+  "nodes": [
+    { "id": "backlog", "stage": "intake", "kind": "source", "actor": "either", "label": "Backlog" },
+    { "id": "code", "stage": "build", "kind": "step", "actor": "human", "label": "Code" },
+    { "id": "agent-fix", "stage": "build", "kind": "step", "actor": "agent", "label": "Agent fix" },
+    { "id": "qa", "stage": "qa", "kind": "step", "actor": "human", "label": "QA" },
+    { "id": "gate", "stage": "release", "kind": "govern", "actor": "either", "label": "Release gate" }
+  ],
+  "edges": [
+    { "id": "e0", "from": "backlog", "to": "code", "weight": 1 },
+    { "id": "e1", "from": "code", "to": "qa", "weight": 1 },
+    { "id": "e2", "from": "agent-fix", "to": "qa", "weight": 1 },
+    { "id": "e3", "from": "qa", "to": "gate", "weight": 0.62 },
+    { "id": "e4", "from": "qa", "to": "agent-fix", "weight": 0.24, "loop": true },
+    { "id": "e5", "from": "qa", "to": "code", "weight": 0.14, "loop": true },
+    { "id": "e6", "from": "gate", "to": "feature", "weight": 0.8 },
+    { "id": "e7", "from": "gate", "to": "canceled", "weight": 0.2 }
+  ],
+  "endStates": [
+    { "id": "feature", "label": "Feature", "tone": "done" },
+    { "id": "canceled", "label": "Canceled", "tone": "open" }
+  ],
+  "hints": { "tokens": 70, "ticks": 1000, "agentShare": 0.4 }
+}

@@ -1,0 +1,12 @@
+# Work Map — rules for Cursor (and any other model working in this package)
+
+- Core is framework-free TypeScript with zero runtime dependencies (seedrandom is the one exception, for the PRNG). React lives only in `packages/react`.
+- Every feature reads or writes `MapSpec`. Never add state that isn't derivable from the spec or the viewport.
+- Rendering is SVG in the DOM. No canvas, no WebGL, unless a task says so explicitly.
+- Themes are CSS variables on the root `<svg>` (`packages/react/src/theme.css`). No colors in components.
+- Generator is deterministic: same seed and preset, same spec. Use the seeded PRNG in `spec/seed.ts`, never `Math.random` (the only exception is `randomSeed()` for "refresh").
+- Metrics are pure functions of `Token[]` (`packages/core/src/metrics`). No metric is stored on the spec.
+- Synthetic data only. Nothing in this repo connects to a work system.
+- Every component gets a story in `apps/dev` before it is considered done.
+- Build order inside each phase: types, then a preset that exercises them, then the pure function, then the component, then the story. Prompt one file at a time and paste the failing screenshot back when the render is wrong.
+- Product boundary: this is a marketing and concept surface. The day it loads real work-system data or a customer asks to keep a map, it becomes product and needs its own Scope & Estimate.

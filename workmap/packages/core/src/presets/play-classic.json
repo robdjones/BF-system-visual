@@ -1,0 +1,45 @@
+{
+  "name": "play-classic",
+  "description": "The Play page map, hand-written as a preset: backlog → triage → spec → agent or human build → policy check → review with a rework loop → four end states.",
+  "theme": "play",
+  "stages": [
+    { "id": "intake", "label": "Intake", "order": 0 },
+    { "id": "spec", "label": "Spec", "order": 1 },
+    { "id": "build", "label": "Build", "order": 2 },
+    { "id": "review", "label": "Review", "order": 3 }
+  ],
+  "nodes": [
+    { "id": "backlog", "stage": "intake", "kind": "source", "actor": "either", "label": "Backlog" },
+    { "id": "triage", "stage": "intake", "kind": "route", "actor": "either", "label": "Triage" },
+    { "id": "spec", "stage": "spec", "kind": "step", "actor": "human", "label": "Write spec" },
+    { "id": "split", "stage": "spec", "kind": "split", "actor": "either", "label": "Human / agent" },
+    { "id": "build-agent", "stage": "build", "kind": "step", "actor": "agent", "label": "Implement" },
+    { "id": "build-human", "stage": "build", "kind": "step", "actor": "human", "label": "Code" },
+    { "id": "policy", "stage": "review", "kind": "govern", "actor": "either", "label": "Policy check" },
+    { "id": "review", "stage": "review", "kind": "step", "actor": "human", "label": "Code review" }
+  ],
+  "edges": [
+    { "id": "e0", "from": "backlog", "to": "triage", "weight": 1 },
+    { "id": "e1", "from": "triage", "to": "spec", "weight": 0.7 },
+    { "id": "e2", "from": "triage", "to": "split", "weight": 0.3 },
+    { "id": "e3", "from": "spec", "to": "split", "weight": 1 },
+    { "id": "e4", "from": "split", "to": "build-agent", "weight": 0.6 },
+    { "id": "e5", "from": "split", "to": "build-human", "weight": 0.4 },
+    { "id": "e6", "from": "build-agent", "to": "policy", "weight": 1 },
+    { "id": "e7", "from": "build-human", "to": "review", "weight": 1 },
+    { "id": "e8", "from": "policy", "to": "review", "weight": 0.8 },
+    { "id": "e9", "from": "policy", "to": "build-agent", "weight": 0.2, "loop": true },
+    { "id": "e10", "from": "review", "to": "feature", "weight": 0.5 },
+    { "id": "e11", "from": "review", "to": "initiative", "weight": 0.2 },
+    { "id": "e12", "from": "review", "to": "orphan", "weight": 0.1 },
+    { "id": "e13", "from": "review", "to": "canceled", "weight": 0.05 },
+    { "id": "e14", "from": "review", "to": "build-human", "weight": 0.15, "loop": true }
+  ],
+  "endStates": [
+    { "id": "feature", "label": "Feature", "tone": "done" },
+    { "id": "initiative", "label": "Initiative", "tone": "done" },
+    { "id": "orphan", "label": "Orphan", "tone": "open" },
+    { "id": "canceled", "label": "Canceled", "tone": "open" }
+  ],
+  "hints": { "tokens": 90, "ticks": 1000, "agentShare": 0.55 }
+}
